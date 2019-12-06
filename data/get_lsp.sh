@@ -1,6 +1,8 @@
 #! /bin/bash
 
 # Get Leeds Sport Pose dataset
+cd data
+
 wget https://sam.johnson.io/research/lsp_dataset.zip
 unzip lsp_dataset.zip
 rm lsp_dataset.zip
