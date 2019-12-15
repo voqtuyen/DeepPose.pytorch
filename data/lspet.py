@@ -1,6 +1,26 @@
 import os
 from scipy.io import loadmat
 import argparse
+import glob
+import pandas as pd
+import numpy as np
+
+# Set seed for random generator
+np.random.seed(100)
+
+
+def fix_invisible_joint(skeleton):
+    """
+    Args:
+        skeleton: a 2-d numpy array of a person's skeleton
+    Example:
+        fix_invisible_joint([
+            [75.0, 75.0, 1.0],
+            [-20, 0., 0.]
+            ...
+        ])
+    """
+    return skeleton
 
 
 def split_data(data_dir, val_ratio=0.2):
@@ -38,21 +58,41 @@ def split_data(data_dir, val_ratio=0.2):
     joints = joint_content['joints']
     # Convert to np array of shape (10000, 14, 3)
     joints = joints.transpose(2, 0, 1)
-    # Ignore visibility label
-    joints = joints[:, :, :2]
-
     num_val_examples = int(joints.shape[0] * val_ratio)
-    print(joints.shape)
-    print(num_val_examples)
+    # List containing indexes to extract data for validation data
+    perm = np.random.permutation(joints.shape[0])[:num_val_examples].tolist()
     
+    images = glob.glob(images_dir + '/*.jpg')
+    
+    train_images = []
+    val_images = []
+    train_joints = []
+    val_joints = []
+
+    for img_path in images:
+        # Get image name 
+        img_name = os.path.basename(img_path)
+        # Image name is greater than image index by 1
+        img_indx = int(img_name.split('.')[0][2:]) - 1
+        skeleton = joints[img_indx, :, :]
+        
+        if img_indx in perm:
+            val_images.append(img_name)
+            val_joints.append(skeleton)
+        else:
+            train_images.append(img_name)
+            train_joints.append(skeleton)
+
+    train_df = pd.DataFrame({'image': train_images, 'joints': train_joints})
+    val_df = pd.DataFrame({'image': val_images, 'joints': val_joints})
+    train_df.to_csv(os.path.join(data_dir, 'train.csv'))
+    val_df.to_csv(os.path.join(data_dir, 'val.csv'))
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--data_dir', default='data/lspet', help='Specify path to dataset directory')
     parser.add_argument('-r', '--val_ratio', default=0.2, help='The ration between train and test set')
-    args = parser.parse_args()
-
-    
+    args = parser.parse_args()    
 
     split_data(args.data_dir)
